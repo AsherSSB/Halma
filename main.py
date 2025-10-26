@@ -41,7 +41,6 @@ class Halma:
         self.display.mainloop()
 
     def make_move(self, selected_row: int, selected_col: int):
-        print(self.selected)
         current_row, current_col = self.selected
 
         if self.grid_display[selected_row][selected_col] == 3:  # selected valid move
