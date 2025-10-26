@@ -19,7 +19,6 @@ class Halma:
 
         self.player_turn: int = 1  # number of player whos turn it is
         self.selected: tuple[int, int] = (-1, -1)  # row, col of selected piece
-        self.jumped: bool = False
 
         # tkinter graphical setup
         self.display: tk.Tk = tk.Tk()
@@ -34,15 +33,7 @@ class Halma:
         self.player_turn_display: tk.Label = tk.Label(
             self.display, text="Player 1's turn"
         )
-        self.pass_turn_button: tk.Button = tk.Button(
-            self.display, text="Pass turn", state=tk.DISABLED, command=self._swap_turns
-        )
-        self.player_turn_display.grid(
-            row=grid_size, column=0, columnspan=grid_size // 2
-        )
-        self.pass_turn_button.grid(
-            row=grid_size, column=grid_size // 2, columnspan=grid_size // 2
-        )
+        self.player_turn_display.grid(row=grid_size, column=0, columnspan=grid_size)
 
         # start game
         self._initialize_tkinter_grid()
@@ -50,24 +41,17 @@ class Halma:
         self.display.mainloop()
 
     def make_move(self, selected_row: int, selected_col: int):
+        print(self.selected)
         current_row, current_col = self.selected
-        delta_row = selected_row - current_row
-        delta_col = selected_col - current_col
 
-        if self._is_valid_move(current_row, current_col, delta_row, delta_col):
+        if self.grid_display[selected_row][selected_col] == 3:  # selected valid move
             self.grid[current_row][current_col] = 0
             self.grid[selected_row][selected_col] = self.player_turn
             self.grid_display = deepcopy(self.grid)
 
             # if player jumped another piece, they keep their turn, else swap turns
-            if abs(delta_row) != 2 and abs(delta_col) != 2:
-                self.selected = (-1, -1)
-                self._swap_turns()
-            else:
-                self.selected = (selected_row, selected_col)
-                self.jumped = True
-                _ = self.pass_turn_button.config(state=tk.ACTIVE)
-                self._select_piece(*self.selected)  # displays possible moves
+            self.selected = (-1, -1)
+            self._swap_turns()
         else:
             self._select_piece(selected_row, selected_col)
 
@@ -85,25 +69,39 @@ class Halma:
     def _select_piece(self, selected_row: int, selected_col: int) -> None:
         self.grid_display = deepcopy(self.grid)  # deep copy to avoid mutation
 
-        if not self.jumped:  # if player hasnt jumped this turn
-            if self.grid[selected_row][selected_col] != self.player_turn:
-                self.selected = (-1, -1)
-                return None  # piece is not current players'
+        if self.grid[selected_row][selected_col] != self.player_turn:
+            self.selected = (-1, -1)
+            return None  # piece is not current players'
 
-            self.selected = (selected_row, selected_col)  # select new pawn
-
-        else:
-            selected_row, selected_col = self.selected
-
+        self.selected = (selected_row, selected_col)
         # display possible moves
+        self._highlight_valid_moves_for_square(selected_row, selected_col)
+
+    def _highlight_valid_moves_for_square(
+        self,
+        row_index: int,
+        col_index: int,
+        explored_squares: set[tuple[int, int]] | None = None,
+        jumped: bool = False,
+    ) -> None:
+        if not explored_squares:
+            explored_squares = set()
+        explored_squares.add((row_index, col_index))
+
         for delta_row in range(-2, 3):
             for delta_col in range(-2, 3):
                 if self._is_valid_move(
-                    selected_row, selected_col, delta_row, delta_col
+                    row_index, col_index, delta_row, delta_col, jumped
                 ):
-                    move_row = selected_row + delta_row
-                    move_col = selected_col + delta_col
+                    move_row = row_index + delta_row
+                    move_col = col_index + delta_col
                     self.grid_display[move_row][move_col] = 3  # 3 is highlight
+                    if (move_row, move_col) not in explored_squares and (
+                        delta_col == 2 or delta_row == 2
+                    ):
+                        self._highlight_valid_moves_for_square(
+                            move_row, move_col, explored_squares, True
+                        )
 
     def _check_victory(self, player: int):
         opponent = 2 if player == 1 else 1
@@ -183,10 +181,8 @@ class Halma:
         return tuple((tuple(row) for row in grid))
 
     def _swap_turns(self):
-        self.jumped = False
         self.selected = (-1, -1)
         self.player_turn = 1 if self.player_turn == 2 else 2
-        _ = self.pass_turn_button.config(state=tk.DISABLED)
         _ = self.player_turn_display.config(text=f"Player {self.player_turn}'s turn")
 
         # remove highlighted "possible move" squares
@@ -198,7 +194,12 @@ class Halma:
         self._redraw_tkinter_grid()
 
     def _is_valid_move(
-        self, current_row: int, current_col: int, delta_row: int, delta_col: int
+        self,
+        current_row: int,
+        current_col: int,
+        delta_row: int,
+        delta_col: int,
+        jumped: bool,
     ) -> bool:
         new_row = current_row + delta_row
         new_col = current_col + delta_col
@@ -206,7 +207,7 @@ class Halma:
         if not self._is_in_bounds(new_row, new_col):  # move out of bounds
             return False
 
-        if self.jumped:  # previous move was a jump
+        if jumped:  # previous move was a jump
             return self._is_valid_jump(current_row, current_col, delta_row, delta_col)
 
         if abs(delta_col) < 2 and abs(delta_row) < 2:  # move is single square
