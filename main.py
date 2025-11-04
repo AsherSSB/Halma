@@ -50,12 +50,28 @@ class Halma:
         self.player_turn_display: tk.Label = tk.Label(
             self.display, text="Player 1's turn"
         )
-        self.player_turn_display.grid(row=0, column=0, columnspan=grid_size // 2)
+        self.player_turn_display.grid(row=0, column=0, columnspan=grid_size // 4)
 
         self.timer_display: tk.Label = tk.Label(
             self.display, text=f"Time Remaining: {self.time_remaining} seconds"
         )
-        self.timer_display.grid(row=0, column=grid_size // 2, columnspan=grid_size // 2)
+        self.timer_display.grid(
+            row=0, column=(grid_size // 4), columnspan=grid_size // 4
+        )
+
+        self.player_1_score_display: tk.Label = tk.Label(
+            self.display, text="Player 1 Score: "
+        )
+        self.player_1_score_display.grid(
+            row=0, column=(grid_size // 4) * 2, columnspan=grid_size // 4
+        )
+
+        self.player_2_score_display: tk.Label = tk.Label(
+            self.display, text="Player 2 Score: "
+        )
+        self.player_2_score_display.grid(
+            row=0, column=(grid_size // 4) * 3, columnspan=grid_size // 4
+        )
 
     def start_game(self):
         self._initialize_tkinter_grid()
@@ -291,6 +307,9 @@ class Halma:
             text=f"Time Remaining: {self.time_remaining} seconds"
         )
         _ = self.display.after(1000, self._decrement_timer)
+
+    def _get_euclidean_distance(self, x1: int, x2: int, y1: int, y2: int) -> float:
+        return (((x1 - x2) ** 2) + ((y1 - y2) ** 2)) ** (1 / 2)
 
     def _end_game(self, winning_player: int):
         print(f"Player {winning_player} wins!")
