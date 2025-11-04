@@ -1,7 +1,6 @@
 import sys
 from copy import deepcopy
 import tkinter as tk
-import asyncio
 
 # rules
 FIRST_ROW_PAWN_COUNT = 4
@@ -50,7 +49,7 @@ class Halma:
             row=grid_size, column=grid_size // 2, columnspan=grid_size // 2
         )
 
-    async def start_game(self):
+    def start_game(self):
         self._initialize_tkinter_grid()
         self._redraw_tkinter_grid()
         # timer display loop
@@ -288,4 +287,4 @@ class Halma:
 
 if __name__ == "__main__":
     game = Halma(int(sys.argv[1]))
-    asyncio.run(game.start_game())
+    game.start_game()
