@@ -7,7 +7,7 @@ FIRST_ROW_PAWN_COUNT = 4
 
 
 class Halma:
-    def __init__(self, grid_size: int, timeout: int = 5):
+    def __init__(self, grid_size: int, timeout: int, player_color: str):
         # game logical grid
         self.grid: list[list[int]] = self._initialize_grid(grid_size)
         # time allowed to make move before timeout
@@ -29,11 +29,11 @@ class Halma:
         self.display: tk.Tk = tk.Tk()
         self.display.title("Halma")
         self.grid_options: dict[int, tuple[str, str]] = {
-            0: ("", ""),
-            1: ("black", "white"),
-            2: ("black", "black"),
-            3: ("black", "green"),
-            4: ("black", "gold"),
+            0: ("", ""),  # empty square
+            1: ("black", player_color),  # player 1 / human color
+            2: ("black", "black"),  # player 2 / ai color
+            3: ("black", "cyan"),  # highlighted possible moves colors
+            4: ("black", "gold"),  # selected pawn color
         }
         self.player_turn_display: tk.Label = tk.Label(
             self.display, text="Player 1's turn"
@@ -286,5 +286,34 @@ class Halma:
 
 
 if __name__ == "__main__":
-    game = Halma(int(sys.argv[1]))
+    board_size: int
+    timeout: int
+    player_color: str
+
+    try:
+        board_size = int(sys.argv[1])
+        if board_size != 8 and board_size != 10 and board_size != 16:
+            raise Exception
+    except Exception:
+        print("board size may only be of size 8, 10, or 16")
+        print("exiting Hamlma")
+        sys.exit(1)
+
+    try:
+        timeout = int(sys.argv[2])
+        if timeout < 1:
+            raise Exception
+    except Exception:
+        print("timeout must be an integer greater than 0")
+        print("exiting Hamlma")
+        sys.exit(2)
+
+    player_color = sys.argv[3]
+    if player_color != "green" and player_color != "red":
+        print("player_color must be set to either green or red!")
+        print("exiting Hamlma")
+        sys.exit(3)
+
+    game = Halma(board_size, timeout, player_color)
     game.start_game()
+    sys.exit(0)
