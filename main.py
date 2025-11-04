@@ -37,29 +37,25 @@ class Halma:
         }
         # set up row labels
         for row_index in range(grid_size):
-            row_label = tk.Label(self.display, text=str(row_index))
-            row_label.grid(row=row_index, column=0)
+            row_label = tk.Label(self.display, text=str(row_index + 1))
+            row_label.grid(row=row_index + 1, column=0)
 
         # set up column labels
         for col_index in range(grid_size):
             label_character = chr(ord("a") + col_index)
             col_label = tk.Label(self.display, text=label_character)
-            col_label.grid(row=grid_size, column=col_index + 1)
+            col_label.grid(row=grid_size + 1, column=col_index + 1)
 
         # set up status bar
         self.player_turn_display: tk.Label = tk.Label(
             self.display, text="Player 1's turn"
         )
-        self.player_turn_display.grid(
-            row=grid_size + 2, column=0, columnspan=grid_size // 2
-        )
+        self.player_turn_display.grid(row=0, column=0, columnspan=grid_size // 2)
 
         self.timer_display: tk.Label = tk.Label(
             self.display, text=f"Time Remaining: {self.time_remaining} seconds"
         )
-        self.timer_display.grid(
-            row=grid_size + 2, column=grid_size // 2, columnspan=grid_size // 2
-        )
+        self.timer_display.grid(row=0, column=grid_size // 2, columnspan=grid_size // 2)
 
     def start_game(self):
         self._initialize_tkinter_grid()
@@ -161,7 +157,7 @@ class Halma:
                 )
 
                 canvas.grid(
-                    row=row_index,
+                    row=row_index + 1,
                     column=col_index + 1,
                     padx=0,
                     pady=0,
