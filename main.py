@@ -8,9 +8,13 @@ FIRST_ROW_PAWN_COUNT = 4
 
 
 class Halma:
-    def __init__(self, grid_size: int):
+    def __init__(self, grid_size: int, timeout: int = 5):
         # game logical grid
         self.grid: list[list[int]] = self._initialize_grid(grid_size)
+        # time allowed to make move before timeout
+        self.timeout: int = timeout
+        # time before current turn is over
+        self.time_remaining: int = timeout
         # static "camps" tuple holds coordinates of camps for each team
         self.camps: tuple[tuple[int, ...], ...] = self._initialize_camps(self.grid)
         # can contain "highlighted" squares (3), not used for logic
@@ -18,6 +22,7 @@ class Halma:
         # pawns (ids) displayed in tkinter window
         self.pawns: list[list[tk.Canvas]] = []
 
+        self.turn_number: int = 0  # total number of turns taken
         self.player_turn: int = 1  # number of player whos turn it is
         self.selected: tuple[int, int] = (-1, -1)  # row, col of selected piece
 
@@ -34,11 +39,22 @@ class Halma:
         self.player_turn_display: tk.Label = tk.Label(
             self.display, text="Player 1's turn"
         )
-        self.player_turn_display.grid(row=grid_size, column=0, columnspan=grid_size)
+        self.player_turn_display.grid(
+            row=grid_size, column=0, columnspan=grid_size // 2
+        )
+
+        self.timer_display: tk.Label = tk.Label(
+            self.display, text=f"Time Remaining: {self.time_remaining} seconds"
+        )
+        self.timer_display.grid(
+            row=grid_size, column=grid_size // 2, columnspan=grid_size // 2
+        )
 
     async def start_game(self):
         self._initialize_tkinter_grid()
         self._redraw_tkinter_grid()
+        # timer display loop
+        _ = self.display.after(1000, self._decrement_timer)
         self.display.mainloop()
 
     def make_move(self, selected_row: int, selected_col: int):
@@ -59,8 +75,7 @@ class Halma:
 
         for player in range(1, 3):
             if self._check_victory(player):
-                print(f"Player {player} wins!")
-                self.display.quit()
+                self._end_game(winning_player=player)
 
     def _initialize_grid(self, grid_size: int) -> list[list[int]]:
         grid = [[0] * grid_size for _ in range(grid_size)]
@@ -181,6 +196,7 @@ class Halma:
         return tuple((tuple(row) for row in grid))
 
     def _swap_turns(self):
+        self.time_remaining = self.timeout
         self.selected = (-1, -1)
         self.player_turn = 1 if self.player_turn == 2 else 2
         _ = self.player_turn_display.config(text=f"Player {self.player_turn}'s turn")
@@ -191,6 +207,7 @@ class Halma:
             for row in self.grid_display
         ]
 
+        self.turn_number += 1
         self._redraw_tkinter_grid()
 
     def _is_valid_move(
@@ -252,6 +269,21 @@ class Halma:
         elif number < 0:
             return number + 1
         return number  # number is already 0
+
+    def _decrement_timer(self):
+        self.time_remaining -= 1
+        if self.time_remaining <= 0:
+            winner = 2 if self.player_turn == 1 else 1
+            self._end_game(winner)
+
+        _ = self.timer_display.config(
+            text=f"Time Remaining: {self.time_remaining} seconds"
+        )
+        _ = self.display.after(1000, self._decrement_timer)
+
+    def _end_game(self, winning_player: int):
+        print(f"Player {winning_player} wins!")
+        self.display.quit()
 
 
 if __name__ == "__main__":
