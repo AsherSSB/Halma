@@ -73,10 +73,16 @@ class Halma:
             row=0, column=(grid_size // 4) * 3 + 1, columnspan=grid_size // 4
         )
 
-        # setup input and error messages
+        # setup input box
         self.move_input: tk.Entry = tk.Entry(self.display)
         self.move_input.bind("<Return>", self._process_move_input)
         self.move_input.grid(row=grid_size + 2, column=0, columnspan=grid_size // 2)
+
+        # setup error messages
+        self.error_message: tk.Label = tk.Label(self.display, fg="red")
+        self.error_message.grid(
+            row=grid_size + 2, column=grid_size // 2, columnspan=grid_size // 2 + 1
+        )
 
     def start_game(self):
         self._initialize_tkinter_grid()
@@ -107,6 +113,7 @@ class Halma:
 
     def _process_move_input(self, _):
         player_input = self.move_input.get()
+        self.move_input.delete(0, tk.END)
         column_base_value = ord("a")
         try:  # some very suspicious string and list unpacking
             starting_coordinate, dest_coordinate = player_input.strip().split("->")
@@ -133,6 +140,7 @@ class Halma:
 
         if self.grid[selected_row][selected_col] != self.player_turn:
             self.selected = (-1, -1)
+            _ = self.error_message.config(text="Invalid move")
             return None  # piece is not current players'
 
         self.selected = (selected_row, selected_col)
@@ -260,6 +268,7 @@ class Halma:
         ]
 
         self.turn_number += 1
+        _ = self.error_message.config(text="")
         self._set_player_scores()
         self._redraw_tkinter_grid()
 
