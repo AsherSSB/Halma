@@ -73,6 +73,11 @@ class Halma:
             row=0, column=(grid_size // 4) * 3 + 1, columnspan=grid_size // 4
         )
 
+        # setup input and error messages
+        self.move_input: tk.Entry = tk.Entry(self.display)
+        self.move_input.bind("<Return>", self._process_move_input)
+        self.move_input.grid(row=grid_size + 2, column=0, columnspan=grid_size // 2)
+
     def start_game(self):
         self._initialize_tkinter_grid()
         self._redraw_tkinter_grid()
@@ -99,6 +104,25 @@ class Halma:
         for player in range(1, 3):
             if self._check_victory(player):
                 self._end_game(winning_player=player)
+
+    def _process_move_input(self, _):
+        player_input = self.move_input.get()
+        column_base_value = ord("a")
+        try:  # some very suspicious string and list unpacking
+            starting_coordinate, dest_coordinate = player_input.strip().split("->")
+
+            starting_col_char, starting_row_index = starting_coordinate
+            starting_row_index = int(starting_row_index) - 1
+            starting_col_index = ord(starting_col_char) - column_base_value
+
+            dest_col_char, dest_row_index = dest_coordinate
+            dest_row_index = int(dest_row_index) - 1
+            dest_col_index = ord(dest_col_char) - column_base_value
+
+            self._select_piece(starting_row_index, starting_col_index)
+            self.make_move(dest_row_index, dest_col_index)
+        except Exception:
+            self.make_move(-1, -1)  # input move is invalid
 
     def _initialize_grid(self, grid_size: int) -> list[list[int]]:
         grid = [[0] * grid_size for _ in range(grid_size)]
