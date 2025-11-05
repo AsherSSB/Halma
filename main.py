@@ -25,6 +25,7 @@ class Halma:
         self.turn_number: int = 0  # total number of turns taken
         self.player_turn: int = 1  # number of player whos turn it is
         self.selected: tuple[int, int] = (-1, -1)  # row, col of selected piece
+        self.previous_square: tuple[int, int] = tuple()  # previous pawn position
 
         # tkinter graphical setup
         self.display: tk.Tk = tk.Tk()
@@ -35,6 +36,7 @@ class Halma:
             2: ("black", "black"),  # player 2 / ai color
             3: ("black", "cyan"),  # highlighted possible moves colors
             4: ("black", "gold"),  # selected pawn color
+            5: ("black", "gray"),  # previous move
         }
         # set up row labels
         for row_index in range(grid_size):
@@ -100,6 +102,7 @@ class Halma:
             self.grid_display = deepcopy(self.grid)
 
             # if player jumped another piece, they keep their turn, else swap turns
+            self.previous_square = self.selected
             self.selected = (-1, -1)
             self._swap_turns()
         else:
@@ -144,8 +147,26 @@ class Halma:
             return None  # piece is not current players'
 
         self.selected = (selected_row, selected_col)
-        # display possible moves
+        # mark possible moves
         self._highlight_valid_moves_for_square(selected_row, selected_col)
+
+        # remove move from possible moves if it is not a forward move
+        highlighted_moves = (
+            (row_index, col_index)
+            for row_index, row in enumerate(self.grid_display)
+            for col_index, col in enumerate(row)
+            if col == 3
+        )
+
+        for new_row_index, new_col_index in highlighted_moves:
+            current_score = self._get_score_from_closest_camp(
+                self.player_turn, selected_row, selected_col
+            )
+            new_score = self._get_score_from_closest_camp(
+                self.player_turn, new_row_index, new_col_index
+            )
+            if new_score < current_score:
+                self.grid_display[new_row_index][new_col_index] = 0
 
     def _highlight_valid_moves_for_square(
         self,
@@ -233,6 +254,13 @@ class Halma:
                     _ = pawn.itemconfig(2, outline="", fill="")
                     _ = pawn.itemconfig(1, outline=outline, fill=fill)
 
+        outline, fill = self.grid_options[5]  # 5 is previous position colors
+        if self.previous_square:
+            previous_row, previous_col = self.previous_square
+            _ = self.pawns[previous_row][previous_col].itemconfig(
+                1, outline=outline, fill=fill
+            )
+
     def _initialize_players(self, grid: list[list[int]]):
         for row_index in range(FIRST_ROW_PAWN_COUNT):
             player_1_row = grid[row_index]
@@ -289,7 +317,7 @@ class Halma:
         if jumped:  # previous move was a jump
             return self._is_valid_jump(current_row, current_col, delta_row, delta_col)
 
-        if abs(delta_col) < 2 and abs(delta_row) < 2:  # move is single square
+        elif abs(delta_col) < 2 and abs(delta_row) < 2:  # move is single square
             return self.grid[new_row][new_col] == 0  # true if no piece present
 
         else:
