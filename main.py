@@ -1,3 +1,4 @@
+import enum
 import sys
 from copy import deepcopy
 import tkinter as tk
@@ -50,27 +51,26 @@ class Halma:
         self.player_turn_display: tk.Label = tk.Label(
             self.display, text="Player 1's turn"
         )
-        self.player_turn_display.grid(row=0, column=0, columnspan=grid_size // 4)
+        self.player_turn_display.grid(row=0, column=1, columnspan=grid_size // 4)
 
         self.timer_display: tk.Label = tk.Label(
-            self.display, text=f"Time Remaining: {self.time_remaining} seconds"
+            self.display, text=f"Time: {self.time_remaining}"
         )
         self.timer_display.grid(
-            row=0, column=(grid_size // 4), columnspan=grid_size // 4
+            row=0, column=(grid_size // 4) + 1, columnspan=grid_size // 4
         )
 
-        self.player_1_score_display: tk.Label = tk.Label(
-            self.display, text="Player 1 Score: "
-        )
+        self.player_1_score_display: tk.Label = tk.Label(self.display)
         self.player_1_score_display.grid(
-            row=0, column=(grid_size // 4) * 2, columnspan=grid_size // 4
+            row=0, column=(grid_size // 4) * 2 + 1, columnspan=grid_size // 4
         )
 
-        self.player_2_score_display: tk.Label = tk.Label(
-            self.display, text="Player 2 Score: "
-        )
+        self.player_2_score_display: tk.Label = tk.Label(self.display)
+
+        self._set_player_scores()
+
         self.player_2_score_display.grid(
-            row=0, column=(grid_size // 4) * 3, columnspan=grid_size // 4
+            row=0, column=(grid_size // 4) * 3 + 1, columnspan=grid_size // 4
         )
 
     def start_game(self):
@@ -183,6 +183,7 @@ class Halma:
                     "<Button-1>",
                     lambda _, row=row_index, col=col_index: self.make_move(row, col),
                 )
+            _ = self.display.grid_rowconfigure(row_index + 1, weight=0)
             self.pawns.append(row_pawns)
 
     def _redraw_tkinter_grid(self):
@@ -235,6 +236,7 @@ class Halma:
         ]
 
         self.turn_number += 1
+        self._set_player_scores()
         self._redraw_tkinter_grid()
 
     def _is_valid_move(
@@ -303,12 +305,45 @@ class Halma:
             winner = 2 if self.player_turn == 1 else 1
             self._end_game(winner)
 
-        _ = self.timer_display.config(
-            text=f"Time Remaining: {self.time_remaining} seconds"
-        )
+        _ = self.timer_display.config(text=f"Time: {self.time_remaining}")
         _ = self.display.after(1000, self._decrement_timer)
 
-    def _get_euclidean_distance(self, x1: int, x2: int, y1: int, y2: int) -> float:
+    def _set_player_scores(self):
+        player_1_score = self._calculate_score(1)
+        player_2_score = self._calculate_score(2)
+        _ = self.player_1_score_display.config(text=f"P1 Score: {player_1_score:.2f}")
+        _ = self.player_2_score_display.config(text=f"P2 Score: {player_2_score:.2f}")
+
+    def _calculate_score(self, player: int):
+        return sum(
+            self._get_score_from_closest_camp(player, row_index, col_index)
+            for row_index, row in enumerate(self.grid)
+            for col_index, col in enumerate(row)
+            if col == player
+        )
+
+    def _get_score_from_closest_camp(
+        self, player: int, row_index: int, col_index: int
+    ) -> float:
+        opponent = 2 if player == 1 else 1
+
+        opponent_camp_coordinates = (
+            (camp_row_index, camp_col_index)
+            for camp_row_index, camp_row in enumerate(self.camps)
+            for camp_col_index, camp_col in enumerate(camp_row)
+            if camp_col == opponent
+        )
+
+        closest_euclidean_distance = min(
+            self._get_euclidean_distance(
+                row_index, col_index, camp_row_index, camp_col_index
+            )
+            for camp_row_index, camp_col_index in opponent_camp_coordinates
+        )
+
+        return 1 / closest_euclidean_distance if closest_euclidean_distance > 0 else 1
+
+    def _get_euclidean_distance(self, x1: int, y1: int, x2: int, y2: int) -> float:
         return (((x1 - x2) ** 2) + ((y1 - y2) ** 2)) ** (1 / 2)
 
     def _end_game(self, winning_player: int):
