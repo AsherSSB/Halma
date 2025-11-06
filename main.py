@@ -26,6 +26,7 @@ class Halma:
         self.player_turn: int = 1  # number of player whos turn it is
         self.selected: tuple[int, int] = (-1, -1)  # row, col of selected piece
         self.previous_square: tuple[int, int] = tuple()  # previous pawn position
+        self.after_timer_decrement: str = ""
 
         # tkinter graphical setup
         self.display: tk.Tk = tk.Tk()
@@ -90,7 +91,7 @@ class Halma:
         self._initialize_tkinter_grid()
         self._redraw_tkinter_grid()
         # timer display loop
-        _ = self.display.after(1000, self._decrement_timer)
+        self.after_timer_decrement = self.display.after(1000, self._decrement_timer)
         self.display.mainloop()
 
     def make_move(self, selected_row: int, selected_col: int):
@@ -118,7 +119,7 @@ class Halma:
         player_input = self.move_input.get()
         self.move_input.delete(0, tk.END)
         column_base_value = ord("a")
-        try:  # some very suspicious string and list unpacking
+        try:  # some very suspicious and list unpacking
             starting_coordinate, dest_coordinate = player_input.strip().split("->")
 
             starting_col_char = starting_coordinate[0]
@@ -286,6 +287,7 @@ class Halma:
         return tuple((tuple(row) for row in grid))
 
     def _swap_turns(self):
+        self.display.after_cancel(self.after_timer_decrement)
         self.time_remaining = self.timeout
         self.selected = (-1, -1)
         self.player_turn = 1 if self.player_turn == 2 else 2
@@ -301,6 +303,8 @@ class Halma:
         _ = self.error_message.config(text="")
         self._set_player_scores()
         self._redraw_tkinter_grid()
+        self.after_timer_decrement = self.display.after(1000, self._decrement_timer)
+        _ = self.timer_display.config(text=f"Time: {self.timeout}")
 
     def _is_valid_move(
         self,
@@ -369,7 +373,7 @@ class Halma:
             self._end_game(winner)
 
         _ = self.timer_display.config(text=f"Time: {self.time_remaining}")
-        _ = self.display.after(1000, self._decrement_timer)
+        self.after_timer_decrement = self.display.after(1000, self._decrement_timer)
 
     def _set_player_scores(self):
         player_1_score = self._calculate_score(1)
