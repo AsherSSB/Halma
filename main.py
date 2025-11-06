@@ -121,12 +121,14 @@ class Halma:
         try:  # some very suspicious string and list unpacking
             starting_coordinate, dest_coordinate = player_input.strip().split("->")
 
-            starting_col_char, starting_row_index = starting_coordinate
-            starting_row_index = int(starting_row_index) - 1
+            starting_col_char = starting_coordinate[0]
+            starting_row_index = int(starting_coordinate[1:])
+            starting_row_index = starting_row_index - 1
             starting_col_index = ord(starting_col_char) - column_base_value
 
-            dest_col_char, dest_row_index = dest_coordinate
-            dest_row_index = int(dest_row_index) - 1
+            dest_col_char = dest_coordinate[0]
+            dest_row_index = int(dest_coordinate[1:])
+            dest_row_index = dest_row_index - 1
             dest_col_index = ord(dest_col_char) - column_base_value
 
             self._select_piece(starting_row_index, starting_col_index)
