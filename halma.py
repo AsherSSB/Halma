@@ -126,6 +126,7 @@ class Halma:
             self.selected = (-1, -1)
             self._swap_turns()
         else:
+            print("INVALID ASS MOVE")
             self._select_piece(selected_row, selected_col)
 
         self._redraw_tkinter_grid()
@@ -157,6 +158,7 @@ class Halma:
             self._select_piece(starting_row_index, starting_col_index)
             self.make_move(dest_row_index, dest_col_index)
         except Exception:
+            print("SHITASS MOVE")
             self.make_move(-1, -1)  # input move is invalid
 
     def _initialize_grid(self, grid_size: int) -> list[list[int]]:
@@ -516,14 +518,79 @@ class HalmaBot2000:
 
     def determine_best_move(self) -> str:
         """Returns the best move found through searching"""
-        return self._determine_blind_best_move()
+        return self._minimax_search(max_depth=4)
 
-    def _minimax_search(self, board: list[list[int]], max_depth: int):
+    def _minimax_search(
+        self, max_depth: int, current_depth: int = 0, alpha=-math.inf, beta=math.inf
+    ) -> str | float:
         """Searches for best move using minimax algorithm"""
+        ai_turn = (current_depth % 2) == 0
+        turn_string = "AI" if ai_turn else "PLAYER"
+        self.game._set_player_scores()
 
-    def _determine_blind_best_move(self) -> str:
+        print(
+            "TURN",
+            turn_string,
+            "DEPTH:",
+            current_depth,
+            "ALPHA:",
+            alpha,
+            "BETA:",
+            beta,
+            end=" ",
+        )
+        if current_depth == max_depth:
+            quality = self._determine_board_quality()
+            print("QUALITY:", quality)
+            print(*self.game.grid, sep="\n")
+            print("----------------------")
+            return quality
+        print()
+
+        best_move = ""
+        best_score = -math.inf if ai_turn else math.inf
+
+        starting_board = deepcopy(self.game.grid)
+        moves: list[str] = self._get_all_possible_moves(2 if ai_turn else 1)
+        import pdb
+
+        pdb.set_trace()
+        for move in moves:
+            self.game.grid = deepcopy(starting_board)
+            print(*self.game.grid, sep="\n")
+            print(f"{turn_string} MOVE:", move)
+            self.game._process_move_input(move)
+            print(*self.game.grid, sep="\n")
+            result_score = self._minimax_search(
+                max_depth, current_depth + 1, alpha=alpha, beta=beta
+            )
+            if ai_turn:
+                if result_score > beta:
+                    self.game.grid = deepcopy(starting_board)
+                    break
+                if result_score > best_score:
+                    if result_score > alpha:
+                        alpha = result_score
+                    best_score = result_score
+                    best_move = move
+            else:
+                if result_score < alpha:
+                    self.game.grid = deepcopy(starting_board)
+                    break
+                if result_score < best_score:
+                    if result_score < beta:
+                        beta = result_score
+                    best_score = result_score
+                    best_move = move
+
+            self.game.grid = deepcopy(starting_board)
+
+        if current_depth == 0:
+            return best_move
+        return best_score
+
+    def _determine_blind_best_move(self, player: int) -> str:
         """Finds move with highest positive score delta for moves currently on the board"""
-        print("---------------------------------------")
         possible_moves = self._get_all_possible_moves()
 
         best_move: str = ""
@@ -534,21 +601,15 @@ class HalmaBot2000:
             self.game._process_move_input(robo_move=move)
             move_score = self._determine_board_quality()
 
-            print(move, move_score)
-
             if move_score > best_move_score:
                 best_move = move
                 best_move_score = move_score
 
-            self._set_game_status(initial_board, players_turn=2)
-
-        print("---------------------------------------")
-
         return best_move
 
-    def _get_all_possible_moves(self) -> list[str]:
+    def _get_all_possible_moves(self, player) -> list[str]:
         result: list[str] = []
-        bot_pawn_coordinates = self._get_all_pawn_coordinates()
+        bot_pawn_coordinates = self._get_all_pawn_coordinates(player)
         for row_index, col_index in bot_pawn_coordinates:
             start = self._translate_indexes_to_coordinates(row_index, col_index)
             self.game._select_piece(row_index, col_index)
@@ -562,14 +623,12 @@ class HalmaBot2000:
 
         return result
 
-    def _get_all_pawn_coordinates(
-        self,
-    ) -> list[tuple[int, int]]:
+    def _get_all_pawn_coordinates(self, player) -> list[tuple[int, int]]:
         return [
             (row_index, col_index)
             for row_index, row in enumerate(self.game.grid)
             for col_index, col in enumerate(row)
-            if col == 2
+            if col == player
         ]
 
     def _determine_board_quality(self):
