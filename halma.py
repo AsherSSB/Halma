@@ -523,7 +523,7 @@ class HalmaBot2000:
         self.use_alpha_beta_pruning: bool = True
 
         self.boards_analyzed: int = 0
-        self.pruned_at_depth: dict[int, int] = {}
+        self.pruned_at_depth: dict[int, int] = dict()
         self.start_time: float = 0.0
         self.elapsed_time: float = 0.0
 
@@ -536,11 +536,11 @@ class HalmaBot2000:
         self.elapsed_time = self.start_time
 
         best_move = ""
-        current_depth = 0
+        iteration_depth = 0
 
         while self.elapsed_time < self.start_time + self.thinking_time:
             board_backup = deepcopy(self.game.grid)
-            result = self._minimax_search(max_depth=current_depth)
+            result = self._minimax_search(max_depth=iteration_depth)
             self.game.grid = board_backup
             if result:
                 best_move = result
@@ -549,10 +549,11 @@ class HalmaBot2000:
                 )
                 for depth, count in sorted(self.pruned_at_depth.items()):
                     print(f"  Depth {depth}: {count} branches pruned")
-                self.pruned_at_depth = dict()
-                current_depth += 1
+                self.pruned_at_depth.clear()
+                iteration_depth += 1
                 print()
 
+        print(f"making move {best_move}")
         return best_move
 
     def _minimax_search(
@@ -578,8 +579,9 @@ class HalmaBot2000:
 
         starting_board = deepcopy(self.game.grid)
         starting_turn = self.game.player_turn
+
         moves: list[str] = self._get_all_possible_moves(2 if ai_turn else 1)
-        print(moves)
+
         for move in moves:
             self.game.grid = deepcopy(starting_board)
             self.game._process_move_input(move)
@@ -587,7 +589,11 @@ class HalmaBot2000:
                 max_depth, current_depth + 1, alpha=alpha, beta=beta
             )
 
-            if not result_score:
+            # print( best_score, result_score, max_depth, current_depth, self.game.player_turn, ai_turn,)
+
+            if result_score == "":
+                self.game.grid = deepcopy(starting_board)
+                self.game.player_turn = starting_turn
                 return ""
 
             if ai_turn:
@@ -605,7 +611,6 @@ class HalmaBot2000:
             else:
                 if result_score < best_score:
                     best_score = result_score
-                    best_move = move
                 if self.use_alpha_beta_pruning:
                     beta = min(beta, result_score)
                     if beta < alpha:
@@ -618,6 +623,9 @@ class HalmaBot2000:
             self.game.grid = deepcopy(starting_board)
             self.game.player_turn = starting_turn
 
+        self.game.grid = deepcopy(starting_board)
+        self.game.player_turn = starting_turn
+
         self.elapsed_time = time.time()
         if current_depth == 0:
             print(f"AI: Best move utility {best_score}")
@@ -627,7 +635,6 @@ class HalmaBot2000:
     def _get_all_possible_moves(self, player) -> list[str]:
         result: list[str] = []
         bot_pawn_coordinates = self._get_all_pawn_coordinates(player)
-        print(bot_pawn_coordinates)
         for row_index, col_index in bot_pawn_coordinates:
             start = self._translate_indexes_to_coordinates(row_index, col_index)
             self.game._select_piece(row_index, col_index)
