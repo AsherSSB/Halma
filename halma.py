@@ -3,6 +3,7 @@ import sys
 from copy import deepcopy
 import tkinter as tk
 import math
+import time
 
 # rules
 FIRST_ROW_PAWN_COUNT = 4
@@ -126,7 +127,6 @@ class Halma:
             self.selected = (-1, -1)
             self._swap_turns()
         else:
-            print("INVALID ASS MOVE")
             self._select_piece(selected_row, selected_col)
 
         self._redraw_tkinter_grid()
@@ -158,7 +158,6 @@ class Halma:
             self._select_piece(starting_row_index, starting_col_index)
             self.make_move(dest_row_index, dest_col_index)
         except Exception:
-            print("SHITASS MOVE")
             self.make_move(-1, -1)  # input move is invalid
 
     def _initialize_grid(self, grid_size: int) -> list[list[int]]:
@@ -224,6 +223,9 @@ class Halma:
                         )
 
     def _check_victory(self, player: int):
+        if self.headless:
+            return False
+
         opponent = 2 if player == 1 else 1
 
         piece_coordinates = [
@@ -513,103 +515,119 @@ class HalmaBot2000:
             self.original_board,
             True,
         )
+        # -100 ms to leave time for post-processing
+        self.thinking_time: float = float(thinking_time) - 0.1
         self.timeout_set: bool = False
         self.game._swap_turns()
 
+        self.use_alpha_beta_pruning: bool = True
+
+        self.boards_analyzed: int = 0
+        self.pruned_at_depth: dict[int, int] = {}
+        self.start_time: float = 0.0
+        self.elapsed_time: float = 0.0
+
     def determine_best_move(self) -> str:
         """Returns the best move found through searching"""
-        return self._minimax_search(max_depth=4)
+        # Reset statistics
+        self.boards_analyzed = 0
+        self.pruned_at_depth = {}
+        self.start_time = time.time()
+        self.elapsed_time = self.start_time
+
+        best_move = ""
+        current_depth = 0
+
+        while self.elapsed_time < self.start_time + self.thinking_time:
+            board_backup = deepcopy(self.game.grid)
+            result = self._minimax_search(max_depth=current_depth)
+            self.game.grid = board_backup
+            if result:
+                best_move = result
+                print(
+                    f"Total boards analyzed: {self.boards_analyzed} in {(self.elapsed_time - self.start_time):.4f} seconds"
+                )
+                for depth, count in sorted(self.pruned_at_depth.items()):
+                    print(f"  Depth {depth}: {count} branches pruned")
+                self.pruned_at_depth = dict()
+                current_depth += 1
+                print()
+
+        return best_move
 
     def _minimax_search(
         self, max_depth: int, current_depth: int = 0, alpha=-math.inf, beta=math.inf
     ) -> str | float:
         """Searches for best move using minimax algorithm"""
+        if max_depth == 0:
+            return self._get_all_possible_moves(2)[0]  # return first move seen
+
+        if self.elapsed_time > self.start_time + self.thinking_time:
+            return ""
+
         ai_turn = (current_depth % 2) == 0
-        turn_string = "AI" if ai_turn else "PLAYER"
         self.game._set_player_scores()
 
-        print(
-            "TURN",
-            turn_string,
-            "DEPTH:",
-            current_depth,
-            "ALPHA:",
-            alpha,
-            "BETA:",
-            beta,
-            end=" ",
-        )
         if current_depth == max_depth:
+            self.boards_analyzed += 1
             quality = self._determine_board_quality()
-            print("QUALITY:", quality)
-            print(*self.game.grid, sep="\n")
-            print("----------------------")
             return quality
-        print()
 
         best_move = ""
         best_score = -math.inf if ai_turn else math.inf
 
         starting_board = deepcopy(self.game.grid)
+        starting_turn = self.game.player_turn
         moves: list[str] = self._get_all_possible_moves(2 if ai_turn else 1)
-        import pdb
-
-        pdb.set_trace()
+        print(moves)
         for move in moves:
             self.game.grid = deepcopy(starting_board)
-            print(*self.game.grid, sep="\n")
-            print(f"{turn_string} MOVE:", move)
             self.game._process_move_input(move)
-            print(*self.game.grid, sep="\n")
             result_score = self._minimax_search(
                 max_depth, current_depth + 1, alpha=alpha, beta=beta
             )
+
+            if not result_score:
+                return ""
+
             if ai_turn:
-                if result_score > beta:
-                    self.game.grid = deepcopy(starting_board)
-                    break
                 if result_score > best_score:
-                    if result_score > alpha:
-                        alpha = result_score
                     best_score = result_score
                     best_move = move
+                if self.use_alpha_beta_pruning:
+                    alpha = max(alpha, result_score)
+                    if alpha > beta:
+                        if current_depth not in self.pruned_at_depth:
+                            self.pruned_at_depth[current_depth] = 0
+                        self.pruned_at_depth[current_depth] += 1
+                        best_score = result_score
+                        break
             else:
-                if result_score < alpha:
-                    self.game.grid = deepcopy(starting_board)
-                    break
                 if result_score < best_score:
-                    if result_score < beta:
-                        beta = result_score
                     best_score = result_score
                     best_move = move
+                if self.use_alpha_beta_pruning:
+                    beta = min(beta, result_score)
+                    if beta < alpha:
+                        if current_depth not in self.pruned_at_depth:
+                            self.pruned_at_depth[current_depth] = 0
+                        self.pruned_at_depth[current_depth] += 1
+                        best_score = result_score
+                        break
 
             self.game.grid = deepcopy(starting_board)
+            self.game.player_turn = starting_turn
 
+        self.elapsed_time = time.time()
         if current_depth == 0:
+            print(f"AI: Best move utility {best_score}")
             return best_move
         return best_score
-
-    def _determine_blind_best_move(self, player: int) -> str:
-        """Finds move with highest positive score delta for moves currently on the board"""
-        possible_moves = self._get_all_possible_moves()
-
-        best_move: str = ""
-        best_move_score: float = -math.inf
-
-        for move in possible_moves:
-            initial_board = deepcopy(self.game.grid)
-            self.game._process_move_input(robo_move=move)
-            move_score = self._determine_board_quality()
-
-            if move_score > best_move_score:
-                best_move = move
-                best_move_score = move_score
-
-        return best_move
 
     def _get_all_possible_moves(self, player) -> list[str]:
         result: list[str] = []
         bot_pawn_coordinates = self._get_all_pawn_coordinates(player)
+        print(bot_pawn_coordinates)
         for row_index, col_index in bot_pawn_coordinates:
             start = self._translate_indexes_to_coordinates(row_index, col_index)
             self.game._select_piece(row_index, col_index)
@@ -632,18 +650,17 @@ class HalmaBot2000:
         ]
 
     def _determine_board_quality(self):
-        return self.game.player_2_score - self.game.player_1_score
+        return (
+            math.inf
+            if self.game.player_2_score >= 10.0
+            else self.game.player_2_score - self.game.player_1_score
+        )
 
     def _translate_indexes_to_coordinates(self, row_index: int, col_index: int):
         return f"{chr(ord('a') + col_index)}{row_index + 1}"
 
     def _set_timeout(self):
         self.timeout_set = True
-
-    def _set_game_status(self, new_board: list[list[int]], players_turn: int):
-        self.game.grid = new_board
-        if self.game.player_turn != players_turn:
-            self.game._swap_turns()
 
 
 if __name__ == "__main__":
